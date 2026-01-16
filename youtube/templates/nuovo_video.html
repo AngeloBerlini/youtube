@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Nuovo Canale{% endblock %}
+
+{% block content %}
+    <h2>Crea un Nuovo Canale</h2>
+    
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+
+    <form method="post">
+        <label>Nome del Canale: <input type="text" name="nome" required></label><br><br>
+        <label>Numero Iscritti: <input type="number" name="numero_iscritti" value="0" min="0"></label><br><br>
+        <label>Categoria: <input type="text" name="categoria" required></label><br><br>
+        <button type="submit">Crea Canale</button>
+        <a href="{{ url_for('main.index') }}">Annulla</a>
+    </form>
+{% endblock %}

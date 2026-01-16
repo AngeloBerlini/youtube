@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Video e Canali{% endblock %}</title>
+</head>
+<body>
+    <nav>
+        <h1>Video e Canali</h1>
+        <a href="{{ url_for('main.index') }}">Home</a> |
+        <a href="{{ url_for('main.nuovo_canale') }}">Nuovo Canale</a> |
+        <a href="{{ url_for('main.about') }}">Descrizione</a>
+    </nav>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Video e Canali</p>
+    </footer>
+</body>
+</html>
+    </footer>
+</body>
+</html>
