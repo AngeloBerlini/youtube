@@ -1,100 +1,81 @@
-# app/main.py
-from flask import Blueprint, render_template, request, redirect, url_for, g
-from .db import get_db
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from werkzeug.exceptions import abort
+from youtube.repositories import channel_repository, video_repository
 
-bp = Blueprint('main', __name__)
+# Usiamo 'main' perché è il blueprint principale del sito
+bp = Blueprint("main", __name__)
 
-@bp.route('/')
+
+@bp.route("/")
 def index():
-    """Home page con lista di tutti i canali"""
-    db = get_db()
-    canali = db.execute(
-        'SELECT id, nome, numero_iscritti, categoria FROM canali'
-    ).fetchall()
-    return render_template('index.html', canali=canali)
 
-@bp.route('/canali/nuovo', methods=['GET', 'POST'])
-def nuovo_canale():
-    """Crea un nuovo canale"""
-    if request.method == 'POST':
-        nome = request.form['nome']
-        numero_iscritti = request.form.get('numero_iscritti', 0, type=int)
-        categoria = request.form['categoria']
+
+    # 1. Prendiamo i canali dal database
+    channels: list[dict] = channel_repository.get_all_channels()
+
+    # 2. Passiamo la variabile 'channels' al template
+    return render_template("index.html", channels=channels)
+
+@bp.route("/channel/<int:id>")
+def channel_detail(id):
+    # 1. Prendiamo il canale
+    channel = channel_repository.get_channel_by_id(id)
+    if channel is None:
+        abort(404, "Canale non trovato.")
+
+    # 2. Prendiamo i video del canale
+    videos = video_repository.get_videos_by_channel(id)
+
+    # 3. Passiamo al template
+    return render_template("channel_detail.html", channel=channel, videos=videos)
+
+
+@bp.route("/url_crea", methods=("GET", "POST"))
+def create_channel():
+    if request.method == "POST":
+        nome = request.form["nome"]
+        numero_iscritti = request.form.get("numero_iscritti", 0, type=int)
+        categoria = request.form["categoria"]
         error = None
 
         if not nome:
-            error = 'Il nome del canale è obbligatorio.'
+            error = "Il nome è obbligatorio."
         if not categoria:
-            error = 'La categoria è obbligatoria.'
+            error = "La categoria è obbligatoria."
 
-        if error is None:
-            db = get_db()
-            db.execute(
-                'INSERT INTO canali (nome, numero_iscritti, categoria) VALUES (?, ?, ?)',
-                (nome, numero_iscritti, categoria)
-            )
-            db.commit()
-            return redirect(url_for('main.index'))
+        if error is not None:
+            flash(error)
+        else:
+            # Creiamo il canale
+            channel_repository.create_channel(nome, numero_iscritti, categoria)
+            return redirect(url_for("main.index"))
 
-        # Se c'è un errore, lo mostriamo
-        return render_template('nuovo_canale.html', error=error)
+    return render_template("create_channel.html")
 
-    return render_template('nuovo_canale.html')
 
-@bp.route('/canale/<int:canale_id>')
-def dettagli_canale(canale_id):
-    """Visualizza i dettagli di un canale e i suoi video"""
-    db = get_db()
-    canale = db.execute(
-        'SELECT id, nome, numero_iscritti, categoria FROM canali WHERE id = ?',
-        (canale_id,)
-    ).fetchone()
-    
-    if canale is None:
-        return "Canale non trovato", 404
-
-    video = db.execute(
-        'SELECT id, titolo, durata, immagine FROM video WHERE canale_id = ? ORDER BY id',
-        (canale_id,)
-    ).fetchall()
-
-    return render_template('dettagli_canale.html', canale=canale, video=video)
-
-@bp.route('/video/nuovo/<int:canale_id>', methods=['GET', 'POST'])
-def nuovo_video(canale_id):
-    """Aggiunge un nuovo video a un canale"""
-    db = get_db()
-    canale = db.execute(
-        'SELECT id, nome FROM canali WHERE id = ?',
-        (canale_id,)
-    ).fetchone()
-
-    if canale is None:
-        return "Canale non trovato", 404
-
-    if request.method == 'POST':
-        titolo = request.form['titolo']
-        durata = request.form.get('durata', 0, type=int)
-        immagine = request.form.get('immagine', '')
+@bp.route("/create_video", methods=("GET", "POST"))
+def create_video():
+    if request.method == "POST":
+        canale_id = request.form.get("canale_id", type=int)
+        titolo = request.form["titolo"]
+        durata = request.form.get("durata", type=int)
+        immagine = request.form.get("immagine", "")
         error = None
 
         if not titolo:
-            error = 'Il titolo del video è obbligatorio.'
-        if durata <= 0:
-            error = 'La durata deve essere maggiore di 0 secondi.'
+            error = "Il titolo è obbligatorio."
+        if durata is None or durata <= 0:
+            error = "La durata deve essere un numero positivo."
+        if canale_id is None:
+            error = "Seleziona un canale."
 
-        if error is None:
-            db.execute(
-                'INSERT INTO video (canale_id, titolo, durata, immagine) VALUES (?, ?, ?, ?)',
-                (canale_id, titolo, durata, immagine)
-            )
-            db.commit()
-            return redirect(url_for('main.dettagli_canale', canale_id=canale_id))
+        if error is not None:
+            flash(error)
+        else:
+            # Creiamo il video
+            video_repository.create_video(canale_id, titolo, durata, immagine)
+            return redirect(url_for("main.channel_detail", id=canale_id))
 
-        return render_template('nuovo_video.html', canale=canale, error=error)
-
-    return render_template('nuovo_video.html', canale=canale)
-
-@bp.route('/about')
-def about():
-    return render_template('about.html')
+    # Per GET, passiamo i canali per il select
+    channels = channel_repository.get_all_channels()
+    return render_template("create_video.html", channels=channels)
