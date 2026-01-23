@@ -1,4 +1,4 @@
-from youtube.db import get_db
+from app.db import get_db
 
 
 def get_videos_by_channel(channel_id):
