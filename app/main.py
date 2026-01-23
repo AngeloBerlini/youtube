@@ -97,3 +97,11 @@ def create_category():
             return redirect(url_for("main.index"))
 
     return render_template("create_category.html")
+
+@bp.route("/categories")
+def list_categories():
+    # 1. Prendiamo le categorie dal database
+    categories: list[dict] = category_repository.get_all_categories()
+
+    # 2. Passiamo la variabile 'categories' al template
+    return render_template("list_categories.html", categories=categories)
